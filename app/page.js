@@ -34,7 +34,7 @@ export default async function Home() {
 
   return (
     <div className="wrap">
-      <div className="title">La Liga · próximos partidos</div>
+      <div className="title">La Liga · últimos partidos (temporada 2023)</div>
       <div className="subtitle">Datos de API-Football · se actualizan automáticamente</div>
 
       <div className="divider">
