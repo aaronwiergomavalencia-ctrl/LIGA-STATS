@@ -137,6 +137,7 @@ export default async function MatchDetail({ params, searchParams }) {
                 <thead>
                   <tr>
                     <th>Jugador</th>
+                <th>PJ</th>
                     <th>Remates</th>
                     <th>A puerta</th>
                     <th>Entradas</th>
@@ -152,6 +153,7 @@ export default async function MatchDetail({ params, searchParams }) {
                     return (
                       <tr key={p.player.id}>
                         <td>{p.player.name}</td>
+                            <td>{played}</td>
                         <td>{average(s?.shots, "total", played) ?? "—"}</td>
                         <td>{average(s?.shots, "on", played) ?? "—"}</td>
                         <td>{average(s?.tackles, "total", played) ?? "—"}</td>
