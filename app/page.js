@@ -1,76 +1,105 @@
 import Link from "next/link";
-import { getMatches } from "@/lib/sheet-data";
+import { getMatchDetail, getPlayerSeasonAverage } from "@/lib/sheet-data";
 
-function formatDate(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return iso;
-  return d.toLocaleDateString("es-ES", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+function statRow(label, key) {
+  return { label, key };
 }
 
-export default async function Home() {
-  let matches = [];
-  let error = null;
+const STAT_ROWS = [
+  statRow("Remates", "remates"),
+  statRow("A puerta", "rematesPuerta"),
+  statRow("Entradas", "entradas"),
+  statRow("Faltas com.", "faltasCometidas"),
+  statRow("Faltas rec.", "faltasRecibidas"),
+  statRow("Paradas", "paradas"),
+];
 
-  try {
-    matches = await getMatches();
-  } catch (e) {
-    error = e.message;
+function fmt(val) {
+  return val === null || val === undefined ? "—" : val;
+}
+
+async function PlayerTable({ list, title }) {
+  const withAverages = await Promise.all(
+    list.map(async (p) => ({
+      ...p,
+      season: await getPlayerSeasonAverage(p.nombre),
+    }))
+  );
+
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ fontFamily: "Barlow Condensed, sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        {title}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Jugador</th>
+            <th>PJ</th>
+            {STAT_ROWS.map((s) => (
+              <th key={s.key}>{s.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {withAverages.map((p) => (
+            <tr key={p.nombre}>
+              <td>{p.nombre}</td>
+              <td>{p.season?.partidosJugados ?? "—"}</td>
+              {STAT_ROWS.map((s) => (
+                <td key={s.key}>{fmt(p[s.key])}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+        Stats de este partido concreto. PJ = partidos jugados en total en la hoja.
+      </div>
+    </div>
+  );
+}
+
+export default async function MatchDetail({ params }) {
+  const id = params.id;
+  const match = await getMatchDetail(id);
+
+  if (!match) {
+    return (
+      <div className="wrap">
+        <Link href="/" className="back-link">Volver a partidos</Link>
+        <div className="error-box">
+          No se ha encontrado este partido en la hoja.
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="wrap">
-      <div className="title">La Liga · partidos (temporada 2026-27)</div>
-      <div className="subtitle">Datos introducidos manualmente, basados en fuentes públicas</div>
+      <Link href="/" className="back-link">Volver a partidos</Link>
 
-      <div className="divider">
-        <span>Partidos</span>
-        <div className="line" />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, marginBottom: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: 130 }}>
+          <div className="badge badge-lg">{match.equipoLocal.slice(0, 3).toUpperCase()}</div>
+          <span style={{ fontSize: 13, textAlign: "center" }}>{match.equipoLocal}</span>
+        </div>
+        <div style={{ fontFamily: "Barlow Condensed, sans-serif", fontSize: 28, color: "var(--text-muted)", fontWeight: 600 }}>
+          vs
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: 130 }}>
+          <div className="badge badge-lg">{match.equipoVisitante.slice(0, 3).toUpperCase()}</div>
+          <span style={{ fontSize: 13, textAlign: "center" }}>{match.equipoVisitante}</span>
+        </div>
+      </div>
+      <div style={{ textAlign: "center", fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
+        {match.jornada && `Jornada ${match.jornada} · `}{match.fecha}
       </div>
 
-      {error && (
-        <div className="error-box">
-          No se han podido cargar los partidos: {error}
-        </div>
-      )}
+      <div className="divider"><span>Jugadores</span><div className="line" /></div>
 
-      {!error && matches.length === 0 && (
-        <div className="error-box">
-          Aún no hay partidos cargados en la hoja. Añade filas en Google Sheets y aparecerán aquí.
-        </div>
-      )}
-
-      {matches.map((m) => (
-        <Link key={m.id} href={`/partido/${m.id}`} className="match-card">
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div className="team-row">
-              <div className="badge">{m.equipoLocal.slice(0, 3).toUpperCase()}</div>
-              <span>{m.equipoLocal}</span>
-            </div>
-            <span style={{ color: "var(--text-muted)", fontFamily: "Roboto Mono, monospace", fontSize: 12 }}>
-              vs
-            </span>
-            <div className="team-row">
-              <div className="badge">{m.equipoVisitante.slice(0, 3).toUpperCase()}</div>
-              <span>{m.equipoVisitante}</span>
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            {m.jornada && (
-              <div style={{ fontFamily: "Roboto Mono, monospace", fontSize: 12, color: "var(--text-sec)" }}>
-                Jornada {m.jornada}
-              </div>
-            )}
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-              {formatDate(m.fecha)}
-            </div>
-          </div>
-        </Link>
-      ))}
+      <PlayerTable list={match.homePlayers} title={match.equipoLocal} />
+      <PlayerTable list={match.awayPlayers} title={match.equipoVisitante} />
     </div>
   );
 }
