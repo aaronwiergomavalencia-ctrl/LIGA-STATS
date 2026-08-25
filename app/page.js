@@ -1,41 +1,31 @@
 import Link from "next/link";
-import { getFixtures } from "@/lib/api-football";
+import { getMatches } from "@/lib/sheet-data";
 
 function formatDate(iso) {
-  return new Date(iso).toLocaleString("es-ES", {
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString("es-ES", {
     weekday: "short",
     day: "2-digit",
     month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
+    year: "numeric",
   });
 }
 
-function statusLabel(fixture) {
-  const status = fixture.fixture.status;
-  if (status.short === "1H" || status.short === "2H" || status.short === "HT") {
-    return { text: `En juego · ${status.elapsed}'`, live: true };
-  }
-  if (status.short === "FT") {
-    return { text: "Finalizado", live: false };
-  }
-  return { text: "Por jugar", live: false };
-}
-
 export default async function Home() {
-  let fixtures = [];
+  let matches = [];
   let error = null;
 
   try {
-    fixtures = await getFixtures();
+    matches = await getMatches();
   } catch (e) {
     error = e.message;
   }
 
   return (
     <div className="wrap">
-      <div className="title">La Liga · últimos partidos (temporada 2023)</div>
-      <div className="subtitle">Datos de API-Football · se actualizan automáticamente</div>
+      <div className="title">La Liga · partidos (temporada 2026-27)</div>
+      <div className="subtitle">Datos introducidos manualmente, basados en fuentes públicas</div>
 
       <div className="divider">
         <span>Partidos</span>
@@ -48,40 +38,39 @@ export default async function Home() {
         </div>
       )}
 
-      {!error && fixtures.length === 0 && (
+      {!error && matches.length === 0 && (
         <div className="error-box">
-          No hay partidos próximos disponibles ahora mismo.
+          Aún no hay partidos cargados en la hoja. Añade filas en Google Sheets y aparecerán aquí.
         </div>
       )}
 
-      {fixtures.map((f) => {
-        const st = statusLabel(f);
-        return (
-          <Link key={f.fixture.id} href={`/partido/${f.fixture.id}`} className="match-card">
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div className="team-row">
-                <div className="badge">{f.teams.home.name.slice(0, 3).toUpperCase()}</div>
-                <span>{f.teams.home.name}</span>
-              </div>
-              <span style={{ color: "var(--text-muted)", fontFamily: "Roboto Mono, monospace", fontSize: 12 }}>
-                vs
-              </span>
-              <div className="team-row">
-                <div className="badge">{f.teams.away.name.slice(0, 3).toUpperCase()}</div>
-                <span>{f.teams.away.name}</span>
-              </div>
+      {matches.map((m) => (
+        <Link key={m.id} href={`/partido/${m.id}`} className="match-card">
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div className="team-row">
+              <div className="badge">{m.equipoLocal.slice(0, 3).toUpperCase()}</div>
+              <span>{m.equipoLocal}</span>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div className={st.live ? "status-live" : "status-upcoming"} style={{ fontFamily: "Roboto Mono, monospace", fontSize: 12 }}>
-                {st.text}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-                {formatDate(f.fixture.date)}
-              </div>
+            <span style={{ color: "var(--text-muted)", fontFamily: "Roboto Mono, monospace", fontSize: 12 }}>
+              vs
+            </span>
+            <div className="team-row">
+              <div className="badge">{m.equipoVisitante.slice(0, 3).toUpperCase()}</div>
+              <span>{m.equipoVisitante}</span>
             </div>
-          </Link>
-        );
-      })}
+          </div>
+          <div style={{ textAlign: "right" }}>
+            {m.jornada && (
+              <div style={{ fontFamily: "Roboto Mono, monospace", fontSize: 12, color: "var(--text-sec)" }}>
+                Jornada {m.jornada}
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+              {formatDate(m.fecha)}
+            </div>
+          </div>
+        </Link>
+      ))}
     </div>
   );
 }
