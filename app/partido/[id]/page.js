@@ -71,7 +71,7 @@ export default async function MatchDetail({ params }) {
   if (!match) {
     return (
       <div className="wrap">
-        <Link href="/" className="back-link">← Volver a partidos</Link>
+        <Link href={`/`} className={`back-link`}>Volver a partidos</Link>
         <div className="error-box">
           No se ha encontrado este partido en la hoja.
         </div>
