@@ -22,9 +22,7 @@ export default async function Home({ searchParams }) {
     error = e.message;
   }
 
-  const jornadas = Array.from(
-    new Set(matches.map((m) => m.jornada).filter(Boolean))
-  ).sort((a, b) => Number(a) - Number(b));
+ const jornadas = Array.from({ length: 38 }, (_, i) => String(i + 1));
 
   const jornadaActiva = searchParams?.jornada || jornadas[0] || null;
 
