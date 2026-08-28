@@ -90,3 +90,75 @@ async function SeasonAverageTable({ list, title }) {
             </tr>
           ))}
         </tbody>
+      </table>
+      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
+        Media calculada por 90 minutos jugados, sobre todo el histórico metido en la hoja.
+      </div>
+    </div>
+  );
+}
+
+export default async function MatchDetail({ params, searchParams }) {
+  const id = params.id;
+  const tab = searchParams?.tab === `media` ? `media` : `partido`;
+  const match = await getMatchDetail(id);
+
+  if (!match) {
+    return (
+      <div className={`wrap`}>
+        <Link href={`/`} className={`back-link`}>Volver a partidos</Link>
+        <div className={`error-box`}>
+          No se ha encontrado este partido en la hoja.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`wrap`}>
+      <Link href={`/`} className={`back-link`}>Volver a partidos</Link>
+
+      <div style={{ display: `flex`, alignItems: `center`, justifyContent: `center`, gap: 20, marginBottom: 6 }}>
+        <div style={{ display: `flex`, flexDirection: `column`, alignItems: `center`, gap: 8, width: 130 }}>
+          <div className={`badge badge-lg`}>{match.equipoLocal.slice(0, 3).toUpperCase()}</div>
+          <span style={{ fontSize: 13, textAlign: `center` }}>{match.equipoLocal}</span>
+        </div>
+        <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 28, color: `var(--text-muted)`, fontWeight: 600 }}>
+          vs
+        </div>
+        <div style={{ display: `flex`, flexDirection: `column`, alignItems: `center`, gap: 8, width: 130 }}>
+          <div className={`badge badge-lg`}>{match.equipoVisitante.slice(0, 3).toUpperCase()}</div>
+          <span style={{ fontSize: 13, textAlign: `center` }}>{match.equipoVisitante}</span>
+        </div>
+      </div>
+      <div style={{ textAlign: `center`, fontSize: 12, color: `var(--text-muted)`, marginBottom: 8 }}>
+        {match.jornada && `Jornada ${match.jornada} · `}{match.fecha}
+      </div>
+
+      <div className={`tabs`}>
+        <Link href={`/partido/${id}?tab=partido`} className={`tab ${tab === "partido" ? "active" : ""}`}>
+          Este partido
+        </Link>
+        <Link href={`/partido/${id}?tab=media`} className={`tab ${tab === "media" ? "active" : ""}`}>
+          Media temporada
+        </Link>
+      </div>
+
+      {tab === `partido` && (
+        <div>
+          <div className={`divider`}><span>Estadísticas de este partido</span><div className={`line`} /></div>
+          <MatchStatsTable list={match.homePlayers} title={match.equipoLocal} />
+          <MatchStatsTable list={match.awayPlayers} title={match.equipoVisitante} />
+        </div>
+      )}
+
+      {tab === `media` && (
+        <div>
+          <div className={`divider`}><span>Media por 90 minutos (temporada)</span><div className={`line`} /></div>
+          <SeasonAverageTable list={match.homePlayers} title={match.equipoLocal} />
+          <SeasonAverageTable list={match.awayPlayers} title={match.equipoVisitante} />
+        </div>
+      )}
+    </div>
+  );
+}
