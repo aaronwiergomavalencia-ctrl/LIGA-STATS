@@ -18,6 +18,10 @@ function fmt(val) {
   return val === null || val === undefined ? "—" : val;
 }
 
+function fmtAvg(val) {
+  return val === null || val === undefined ? "—" : val.toFixed(2);
+}
+
 async function PlayerTable({ list, title }) {
   const withAverages = await Promise.all(
     list.map(async (p) => ({
@@ -27,15 +31,46 @@ async function PlayerTable({ list, title }) {
   );
 
   return (
-    <div style={{ marginBottom: 22 }}>
+    <div style={{ marginBottom: 30 }}>
       <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
         {title}
+      </div>
+
+      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-sec)`, marginBottom: 4 }}>
+        Estadísticas de este partido
+      </div>
+      <table style={{ marginBottom: 16 }}>
+        <thead>
+          <tr>
+            <th>Jugador</th>
+            <th>Min.</th>
+            {STAT_ROWS.map((s) => (
+              <th key={s.key}>{s.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {withAverages.map((p) => (
+            <tr key={p.nombre}>
+              <td>{p.nombre}</td>
+              <td>{fmt(p.minutos)}</td>
+              {STAT_ROWS.map((s) => (
+                <td key={s.key}>{fmt(p[s.key])}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-sec)`, marginBottom: 4 }}>
+        Media por 90 minutos (temporada, {`{`}PJ = partidos con minutos registrados{`}`})
       </div>
       <table>
         <thead>
           <tr>
             <th>Jugador</th>
             <th>PJ</th>
+            <th>Min. tot.</th>
             {STAT_ROWS.map((s) => (
               <th key={s.key}>{s.label}</th>
             ))}
@@ -46,16 +81,14 @@ async function PlayerTable({ list, title }) {
             <tr key={p.nombre}>
               <td>{p.nombre}</td>
               <td>{p.season?.partidosJugados ?? `—`}</td>
+              <td>{p.season?.minutosJugados ?? `—`}</td>
               {STAT_ROWS.map((s) => (
-                <td key={s.key}>{fmt(p[s.key])}</td>
+                <td key={s.key}>{fmtAvg(p.season?.[s.key])}</td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
-      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
-        Stats de este partido concreto. PJ = partidos jugados en total en la hoja.
-      </div>
     </div>
   );
 }
