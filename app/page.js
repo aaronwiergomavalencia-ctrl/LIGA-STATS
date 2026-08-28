@@ -12,7 +12,7 @@ function formatDate(iso) {
   });
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }) {
   let matches = [];
   let error = null;
 
@@ -22,10 +22,43 @@ export default async function Home() {
     error = e.message;
   }
 
+  const jornadas = Array.from(
+    new Set(matches.map((m) => m.jornada).filter(Boolean))
+  ).sort((a, b) => Number(a) - Number(b));
+
+  const jornadaActiva = searchParams?.jornada || jornadas[0] || null;
+
+  const matchesFiltrados = jornadaActiva
+    ? matches.filter((m) => String(m.jornada) === String(jornadaActiva))
+    : matches;
+
   return (
     <div className={`wrap`}>
       <div className={`title`}>La Liga · partidos (temporada 2026-27)</div>
       <div className={`subtitle`}>Datos introducidos manualmente, basados en fuentes públicas</div>
+
+      {jornadas.length > 0 && (
+        <div
+          style={{
+            display: `flex`,
+            gap: 8,
+            overflowX: `auto`,
+            padding: `16px 0 4px`,
+            marginBottom: 4,
+          }}
+        >
+          {jornadas.map((j) => (
+            <Link
+              key={j}
+              href={`/?jornada=${j}`}
+              className={`tab ${String(j) === String(jornadaActiva) ? "active" : ""}`}
+              style={{ flexShrink: 0 }}
+            >
+              Jornada {j}
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className={`divider`}>
         <span>Partidos</span>
@@ -38,13 +71,13 @@ export default async function Home() {
         </div>
       )}
 
-      {!error && matches.length === 0 && (
+      {!error && matchesFiltrados.length === 0 && (
         <div className={`error-box`}>
-          Aún no hay partidos cargados en la hoja. Añade filas en Google Sheets y aparecerán aquí.
+          No hay partidos cargados para esta jornada todavía.
         </div>
       )}
 
-      {matches.map((m) => (
+      {matchesFiltrados.map((m) => (
         <Link key={m.id} href={`/partido/${m.id}`} className={`match-card`}>
           <div style={{ display: `flex`, alignItems: `center`, gap: 12 }}>
             <div className={`team-row`}>
