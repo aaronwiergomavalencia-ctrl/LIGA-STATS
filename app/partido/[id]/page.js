@@ -485,3 +485,286 @@ export default async function MatchDetail({ params, searchParams }) {
     </div>
   );
 }
+
+function MatchStatsTable({ list, title }) {
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        {title}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Jugador</th>
+            <th>Min.</th>
+            {STAT_ROWS.map((s) => (
+              <th key={s.key}>{s.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((p) => (
+            <tr key={p.nombre}>
+              <td>{p.nombre}</td>
+              <td>{fmt(p.minutos)}</td>
+              {STAT_ROWS.map((s) => (
+                <td key={s.key}>{fmt(p[s.key])}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+async function SeasonAverageTable({ list, title }) {
+  const withAverages = await Promise.all(
+    list.map(async (p) => ({
+      ...p,
+      season: await getPlayerSeasonAverage(p.nombre),
+    }))
+  );
+
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        {title}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Jugador</th>
+            <th>PJ</th>
+            <th>Min. tot.</th>
+            {STAT_ROWS.map((s) => (
+              <th key={s.key}>{s.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {withAverages.map((p) => (
+            <tr key={p.nombre}>
+              <td>{p.nombre}</td>
+              <td>{p.season?.partidosJugados ?? `—`}</td>
+              <td>{p.season?.minutosJugados ?? `—`}</td>
+              {STAT_ROWS.map((s) => (
+                <td key={s.key}>{fmtAvg(p.season?.[s.key])}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
+        Media calculada por 90 minutos jugados, sobre todo el histórico metido en la hoja.
+      </div>
+    </div>
+  );
+}
+
+function flechaCambio(base, ajustado) {
+  if (base === null || ajustado === null || base === undefined || ajustado === undefined) return ``;
+  const diff = ajustado - base;
+  if (Math.abs(diff) < 0.05) return `→`;
+  return diff > 0 ? `↑` : `↓`;
+}
+
+function colorCambio(base, ajustado) {
+  if (base === null || ajustado === null) return `var(--text-muted)`;
+  const diff = ajustado - base;
+  if (Math.abs(diff) < 0.05) return `var(--text-sec)`;
+  return diff > 0 ? `var(--turf)` : `var(--brick, #C6553F)`;
+}
+
+function TablaJugadoresProbabilidad({ jugadores, subtitulo }) {
+  if (jugadores.length === 0) {
+    return (
+      <div style={{ fontSize: 12, color: `var(--text-muted)`, marginBottom: 12 }}>
+        Sin jugadores en este grupo todavía.
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 12, color: `var(--text-sec)`, marginBottom: 6, textTransform: `uppercase`, letterSpacing: `0.04em` }}>
+        {subtitulo}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Jugador</th>
+            {STAT_ROWS.map((s) => (
+              <th key={s.key}>{s.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {jugadores.map((p) => (
+            <tr key={p.nombre}>
+              <td>{p.nombre}</td>
+              {STAT_ROWS.map((s) => {
+                const base = p.pred?.base?.[s.key];
+                const ajustado = p.pred?.sinAjuste ? base : p.pred?.ajustado?.[s.key];
+                return (
+                  <td key={s.key}>
+                    {ajustado === null || ajustado === undefined ? (
+                      `—`
+                    ) : (
+                      <span>
+                        {ajustado.toFixed(2)}{` `}
+                        <span style={{ color: colorCambio(base, ajustado), fontSize: 10 }}>
+                          {flechaCambio(base, ajustado)}
+                        </span>
+                      </span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+async function ContextualTable({ teamName, title, rivalName, matchPlayers }) {
+  const roster = await getTeamRoster(teamName);
+  const enEstePartido = new Map(matchPlayers.map((p) => [p.nombre, p.titular]));
+
+  const withPredictions = await Promise.all(
+    roster.map(async (j) => {
+      const esTitular = enEstePartido.has(j.nombre)
+        ? enEstePartido.get(j.nombre)
+        : j.esTitularHabitual;
+      return {
+        ...j,
+        esTitular,
+        pred: await getContextualPrediction(j.nombre, rivalName),
+      };
+    })
+  );
+
+  const titulares = withPredictions.filter((p) => p.esTitular);
+  const suplentes = withPredictions.filter((p) => !p.esTitular);
+
+  return (
+    <div style={{ marginBottom: 26 }}>
+      <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        {title} <span style={{ fontSize: 12, color: `var(--text-muted)`, fontWeight: 400 }}>vs {rivalName}</span>
+      </div>
+      <TablaJugadoresProbabilidad jugadores={titulares} subtitulo={`Titulares`} />
+      <TablaJugadoresProbabilidad jugadores={suplentes} subtitulo={`Suplentes`} />
+      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
+        Si el jugador tiene TITULAR marcado en este partido, se usa ese dato. Si no aparece en este partido, se usa si suele ser titular en el resto de la temporada.
+      </div>
+    </div>
+  );
+}
+
+export default async function MatchDetail({ params, searchParams }) {
+  const id = params.id;
+  const tabParam = searchParams?.tab;
+  const tab =
+    tabParam === `media` ? `media` :
+    tabParam === `alineacion` ? `alineacion` :
+    tabParam === `probabilidad` ? `probabilidad` :
+    `partido`;
+  const match = await getMatchDetail(id);
+
+  if (!match) {
+    return (
+      <div className={`wrap`}>
+        <Link href={`/`} className={`back-link`}>Volver a partidos</Link>
+        <div className={`error-box`}>
+          No se ha encontrado este partido en la hoja.
+        </div>
+      </div>
+    );
+  }
+
+  const algunoSinConfirmar = [...match.homePlayers, ...match.awayPlayers]
+    .filter((p) => p.titular)
+    .some((p) => !p.confirmado);
+
+  return (
+    <div className={`wrap`}>
+      <Link href={`/`} className={`back-link`}>Volver a partidos</Link>
+
+      <div style={{ display: `flex`, alignItems: `center`, justifyContent: `center`, gap: 20, marginBottom: 6 }}>
+        <div style={{ display: `flex`, flexDirection: `column`, alignItems: `center`, gap: 8, width: 130 }}>
+          <div className={`badge badge-lg`}>{match.equipoLocal.slice(0, 3).toUpperCase()}</div>
+          <span style={{ fontSize: 13, textAlign: `center` }}>{match.equipoLocal}</span>
+        </div>
+        <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 28, color: `var(--turf)`, fontWeight: 700 }}>
+          {match.golesLocal !== null && match.golesVisitante !== null
+            ? `${match.golesLocal} - ${match.golesVisitante}`
+            : `vs`}
+        </div>
+        <div style={{ display: `flex`, flexDirection: `column`, alignItems: `center`, gap: 8, width: 130 }}>
+          <div className={`badge badge-lg`}>{match.equipoVisitante.slice(0, 3).toUpperCase()}</div>
+          <span style={{ fontSize: 13, textAlign: `center` }}>{match.equipoVisitante}</span>
+        </div>
+      </div>
+      <div style={{ textAlign: `center`, fontSize: 12, color: `var(--text-muted)`, marginBottom: 8 }}>
+        {match.jornada && `Jornada ${match.jornada} · `}{match.fecha}
+      </div>
+
+      <div className={`tabs`} style={{ flexWrap: `wrap` }}>
+        <Link href={`/partido/${id}?tab=alineacion`} className={`tab ${tab === "alineacion" ? "active" : ""}`}>
+          Alineación
+        </Link>
+        <Link href={`/partido/${id}?tab=partido`} className={`tab ${tab === "partido" ? "active" : ""}`}>
+          Este partido
+        </Link>
+        <Link href={`/partido/${id}?tab=media`} className={`tab ${tab === "media" ? "active" : ""}`}>
+          Media temporada
+        </Link>
+        <Link href={`/partido/${id}?tab=probabilidad`} className={`tab ${tab === "probabilidad" ? "active" : ""}`}>
+          Probabilidad
+        </Link>
+      </div>
+
+      {tab === `alineacion` && (
+        <div>
+          <div className={`divider`}><span>Once titular</span><div className={`line`} /></div>
+          {algunoSinConfirmar && (
+            <div style={{ background: `rgba(217, 164, 65, 0.12)`, border: `1px solid var(--amber)`, borderRadius: 8, padding: `8px 12px`, marginBottom: 12, fontSize: 12, color: `var(--amber)` }}>
+              ⚠ Once probable, aún sin confirmar oficialmente
+            </div>
+          )}
+          <MatchPitch
+            homePlayers={match.homePlayers}
+            awayPlayers={match.awayPlayers}
+            equipoLocal={match.equipoLocal}
+            equipoVisitante={match.equipoVisitante}
+          />
+        </div>
+      )}
+
+      {tab === `partido` && (
+        <div>
+          <div className={`divider`}><span>Estadísticas de este partido</span><div className={`line`} /></div>
+          <MatchStatsTable list={match.homePlayers} title={match.equipoLocal} />
+          <MatchStatsTable list={match.awayPlayers} title={match.equipoVisitante} />
+        </div>
+      )}
+
+      {tab === `media` && (
+        <div>
+          <div className={`divider`}><span>Media por 90 minutos (temporada)</span><div className={`line`} /></div>
+          <SeasonAverageTable list={match.homePlayers} title={match.equipoLocal} />
+          <SeasonAverageTable list={match.awayPlayers} title={match.equipoVisitante} />
+        </div>
+      )}
+
+      {tab === `probabilidad` && (
+        <div>
+          <div className={`divider`}><span>Probabilidad ajustada por rival</span><div className={`line`} /></div>
+          <ContextualTable teamName={match.equipoLocal} title={match.equipoLocal} rivalName={match.equipoVisitante} matchPlayers={match.homePlayers} />
+          <ContextualTable teamName={match.equipoVisitante} title={match.equipoVisitante} rivalName={match.equipoLocal} matchPlayers={match.awayPlayers} />
+        </div>
+      )}
+    </div>
+  );
+}
