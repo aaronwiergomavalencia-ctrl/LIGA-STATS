@@ -22,6 +22,113 @@ function fmtAvg(val) {
   return val === null || val === undefined ? "—" : val.toFixed(2);
 }
 
+// Fila (0 = portero, 1 = defensas, 2 = centrocampistas, 3 = delanteros)
+// y orden de izquierda a derecha dentro de esa fila.
+const POSITION_MAP = {
+  POR: { row: 0, order: 0 },
+  LI: { row: 1, order: 1 },
+  DFC: { row: 1, order: 2.5 },
+  LD: { row: 1, order: 4 },
+  DEF: { row: 1, order: 2.5 },
+  MCD: { row: 2, order: 1 },
+  MI: { row: 2, order: 1.5 },
+  MC: { row: 2, order: 2.5 },
+  MCO: { row: 2, order: 3 },
+  MD: { row: 2, order: 3.5 },
+  CEN: { row: 2, order: 2.5 },
+  EI: { row: 3, order: 1 },
+  DC: { row: 3, order: 2 },
+  ED: { row: 3, order: 3 },
+  DEL: { row: 3, order: 2 },
+};
+
+function agruparPorFila(titulares) {
+  const filas = [[], [], [], []];
+  titulares.forEach((p) => {
+    const info = POSITION_MAP[p.posicion] || { row: 2, order: 2.5 };
+    filas[info.row].push({ ...p, _order: info.order });
+  });
+  filas.forEach((fila) => fila.sort((a, b) => a._order - b._order));
+  return filas;
+}
+
+function Pitch({ players, title }) {
+  const titulares = players.filter((p) => p.titular);
+  const filas = agruparPorFila(titulares);
+  // De arriba a abajo: delanteros, centrocampistas, defensas, portero.
+  const ordenVisual = [filas[3], filas[2], filas[1], filas[0]];
+
+  return (
+    <div style={{ marginBottom: 26 }}>
+      <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        {title}
+      </div>
+      {titulares.length === 0 ? (
+        <div className={`error-box`}>
+          Aún no hay once titular marcado (columna TITULAR) para este equipo en este partido.
+        </div>
+      ) : (
+        <div
+          style={{
+            background: `var(--turf-dim)`,
+            border: `1px solid var(--line)`,
+            borderRadius: 10,
+            padding: `20px 10px`,
+            display: `flex`,
+            flexDirection: `column`,
+            gap: 18,
+          }}
+        >
+          {ordenVisual.map((fila, i) => (
+            <div
+              key={i}
+              style={{
+                display: `flex`,
+                justifyContent: `space-evenly`,
+                alignItems: `flex-start`,
+              }}
+            >
+              {fila.map((p) => (
+                <div
+                  key={p.nombre}
+                  style={{
+                    display: `flex`,
+                    flexDirection: `column`,
+                    alignItems: `center`,
+                    gap: 4,
+                    maxWidth: 80,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: `50%`,
+                      background: `var(--surface)`,
+                      border: `1px solid var(--chalk)`,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      textAlign: `center`,
+                      color: `var(--chalk)`,
+                      fontFamily: `Inter, sans-serif`,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {p.nombre}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MatchStatsTable({ list, title }) {
   return (
     <div style={{ marginBottom: 22 }}>
@@ -100,7 +207,7 @@ async function SeasonAverageTable({ list, title }) {
 
 export default async function MatchDetail({ params, searchParams }) {
   const id = params.id;
-  const tab = searchParams?.tab === `media` ? `media` : `partido`;
+  const tab = searchParams?.tab === `media` ? `media` : searchParams?.tab === `alineacion` ? `alineacion` : `partido`;
   const match = await getMatchDetail(id);
 
   if (!match) {
@@ -123,8 +230,10 @@ export default async function MatchDetail({ params, searchParams }) {
           <div className={`badge badge-lg`}>{match.equipoLocal.slice(0, 3).toUpperCase()}</div>
           <span style={{ fontSize: 13, textAlign: `center` }}>{match.equipoLocal}</span>
         </div>
-        <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 28, color: `var(--text-muted)`, fontWeight: 600 }}>
-          vs
+        <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 28, color: `var(--turf)`, fontWeight: 700 }}>
+          {match.golesLocal !== null && match.golesVisitante !== null
+            ? `${match.golesLocal} - ${match.golesVisitante}`
+            : `vs`}
         </div>
         <div style={{ display: `flex`, flexDirection: `column`, alignItems: `center`, gap: 8, width: 130 }}>
           <div className={`badge badge-lg`}>{match.equipoVisitante.slice(0, 3).toUpperCase()}</div>
@@ -136,6 +245,9 @@ export default async function MatchDetail({ params, searchParams }) {
       </div>
 
       <div className={`tabs`}>
+        <Link href={`/partido/${id}?tab=alineacion`} className={`tab ${tab === "alineacion" ? "active" : ""}`}>
+          Alineación
+        </Link>
         <Link href={`/partido/${id}?tab=partido`} className={`tab ${tab === "partido" ? "active" : ""}`}>
           Este partido
         </Link>
@@ -143,6 +255,14 @@ export default async function MatchDetail({ params, searchParams }) {
           Media temporada
         </Link>
       </div>
+
+      {tab === `alineacion` && (
+        <div>
+          <div className={`divider`}><span>Once titular</span><div className={`line`} /></div>
+          <Pitch players={match.homePlayers} title={match.equipoLocal} />
+          <Pitch players={match.awayPlayers} title={match.equipoVisitante} />
+        </div>
+      )}
 
       {tab === `partido` && (
         <div>
