@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMatchDetail, getPlayerSeasonAverage } from "@/lib/sheet-data";
+import { getMatchDetail, getPlayerSeasonAverage, getContextualPrediction } from "@/lib/sheet-data";
 
 function statRow(label, key) {
   return { label, key };
@@ -51,7 +51,6 @@ function agruparPorFila(titulares) {
 }
 
 function formacion(filas) {
-  // filas = [POR, DEF, CEN, DEL]. El sistema no cuenta al portero.
   return [filas[1].length, filas[2].length, filas[3].length]
     .filter((n) => n > 0)
     .join(`-`);
@@ -122,8 +121,6 @@ function AreaPenalti({ arriba }) {
         width: `56%`,
         height: 44,
         border: `1px solid rgba(233, 239, 234, 0.25)`,
-        borderTop: arriba ? `none` : undefined,
-        borderBottom: arriba ? undefined : `none`,
       }}
     />
   );
@@ -289,9 +286,89 @@ async function SeasonAverageTable({ list, title }) {
   );
 }
 
+function flechaCambio(base, ajustado) {
+  if (base === null || ajustado === null || base === undefined || ajustado === undefined) return ``;
+  const diff = ajustado - base;
+  if (Math.abs(diff) < 0.05) return `→`;
+  return diff > 0 ? `↑` : `↓`;
+}
+
+function colorCambio(base, ajustado) {
+  if (base === null || ajustado === null) return `var(--text-muted)`;
+  const diff = ajustado - base;
+  if (Math.abs(diff) < 0.05) return `var(--text-sec)`;
+  return diff > 0 ? `var(--turf)` : `var(--brick, #C6553F)`;
+}
+
+async function ContextualTable({ list, title, rivalName }) {
+  const withPredictions = await Promise.all(
+    list
+      .filter((p) => p.titular)
+      .map(async (p) => ({
+        ...p,
+        pred: await getContextualPrediction(p.nombre, rivalName),
+      }))
+  );
+
+  return (
+    <div style={{ marginBottom: 26 }}>
+      <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        {title} <span style={{ fontSize: 12, color: `var(--text-muted)`, fontWeight: 400 }}>vs {rivalName}</span>
+      </div>
+      {withPredictions.length === 0 ? (
+        <div className={`error-box`}>Marca el once titular (pestaña Alineación) para ver la probabilidad ajustada.</div>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Jugador</th>
+              {STAT_ROWS.map((s) => (
+                <th key={s.key}>{s.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {withPredictions.map((p) => (
+              <tr key={p.nombre}>
+                <td>{p.nombre}</td>
+                {STAT_ROWS.map((s) => {
+                  const base = p.pred?.base?.[s.key];
+                  const ajustado = p.pred?.sinAjuste ? base : p.pred?.ajustado?.[s.key];
+                  return (
+                    <td key={s.key}>
+                      {ajustado === null || ajustado === undefined ? (
+                        `—`
+                      ) : (
+                        <span>
+                          {ajustado.toFixed(2)}{` `}
+                          <span style={{ color: colorCambio(base, ajustado), fontSize: 10 }}>
+                            {flechaCambio(base, ajustado)}
+                          </span>
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
+        Media del jugador ajustada según el estilo del rival ({rivalName}) comparado con la media de la liga. Las flechas indican si sube o baja respecto a su media normal. Cuantos más partidos metas, más fiable será.
+      </div>
+    </div>
+  );
+}
+
 export default async function MatchDetail({ params, searchParams }) {
   const id = params.id;
-  const tab = searchParams?.tab === `media` ? `media` : searchParams?.tab === `alineacion` ? `alineacion` : `partido`;
+  const tabParam = searchParams?.tab;
+  const tab =
+    tabParam === `media` ? `media` :
+    tabParam === `alineacion` ? `alineacion` :
+    tabParam === `probabilidad` ? `probabilidad` :
+    `partido`;
   const match = await getMatchDetail(id);
 
   if (!match) {
@@ -328,7 +405,7 @@ export default async function MatchDetail({ params, searchParams }) {
         {match.jornada && `Jornada ${match.jornada} · `}{match.fecha}
       </div>
 
-      <div className={`tabs`}>
+      <div className={`tabs`} style={{ flexWrap: `wrap` }}>
         <Link href={`/partido/${id}?tab=alineacion`} className={`tab ${tab === "alineacion" ? "active" : ""}`}>
           Alineación
         </Link>
@@ -337,6 +414,9 @@ export default async function MatchDetail({ params, searchParams }) {
         </Link>
         <Link href={`/partido/${id}?tab=media`} className={`tab ${tab === "media" ? "active" : ""}`}>
           Media temporada
+        </Link>
+        <Link href={`/partido/${id}?tab=probabilidad`} className={`tab ${tab === "probabilidad" ? "active" : ""}`}>
+          Probabilidad
         </Link>
       </div>
 
@@ -365,6 +445,14 @@ export default async function MatchDetail({ params, searchParams }) {
           <div className={`divider`}><span>Media por 90 minutos (temporada)</span><div className={`line`} /></div>
           <SeasonAverageTable list={match.homePlayers} title={match.equipoLocal} />
           <SeasonAverageTable list={match.awayPlayers} title={match.equipoVisitante} />
+        </div>
+      )}
+
+      {tab === `probabilidad` && (
+        <div>
+          <div className={`divider`}><span>Probabilidad ajustada por rival</span><div className={`line`} /></div>
+          <ContextualTable list={match.homePlayers} title={match.equipoLocal} rivalName={match.equipoVisitante} />
+          <ContextualTable list={match.awayPlayers} title={match.equipoVisitante} rivalName={match.equipoLocal} />
         </div>
       )}
     </div>
