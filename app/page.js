@@ -22,7 +22,7 @@ export default async function Home({ searchParams }) {
     error = e.message;
   }
 
- const jornadas = Array.from({ length: 38 }, (_, i) => String(i + 1));
+  const jornadas = Array.from({ length: 38 }, (_, i) => String(i + 1));
 
   const jornadaActiva = searchParams?.jornada || jornadas[0] || null;
 
@@ -82,8 +82,10 @@ export default async function Home({ searchParams }) {
               <div className={`badge`}>{m.equipoLocal.slice(0, 3).toUpperCase()}</div>
               <span>{m.equipoLocal}</span>
             </div>
-            <span style={{ color: `var(--text-muted)`, fontFamily: `Roboto Mono, monospace`, fontSize: 12 }}>
-              vs
+            <span style={{ color: `var(--turf)`, fontFamily: `Roboto Mono, monospace`, fontSize: 15, fontWeight: 700, minWidth: 36, textAlign: `center` }}>
+              {m.golesLocal !== null && m.golesVisitante !== null
+                ? `${m.golesLocal} - ${m.golesVisitante}`
+                : `vs`}
             </span>
             <div className={`team-row`}>
               <div className={`badge`}>{m.equipoVisitante.slice(0, 3).toUpperCase()}</div>
