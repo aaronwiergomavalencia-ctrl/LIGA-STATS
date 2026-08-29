@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMatchDetail, getPlayerSeasonAverage, getContextualPrediction } from "@/lib/sheet-data";
+import { getMatchDetail, getPlayerSeasonAverage, getContextualPrediction, getTeamRoster } from "@/lib/sheet-data";
 
 function statRow(label, key) {
   return { label, key };
@@ -300,14 +300,14 @@ function colorCambio(base, ajustado) {
   return diff > 0 ? `var(--turf)` : `var(--brick, #C6553F)`;
 }
 
-async function ContextualTable({ list, title, rivalName }) {
+async function ContextualTable({ teamName, title, rivalName }) {
+  const roster = await getTeamRoster(teamName);
+
   const withPredictions = await Promise.all(
-    list
-      .filter((p) => p.titular)
-      .map(async (p) => ({
-        ...p,
-        pred: await getContextualPrediction(p.nombre, rivalName),
-      }))
+    roster.map(async (nombre) => ({
+      nombre,
+      pred: await getContextualPrediction(nombre, rivalName),
+    }))
   );
 
   return (
@@ -316,7 +316,7 @@ async function ContextualTable({ list, title, rivalName }) {
         {title} <span style={{ fontSize: 12, color: `var(--text-muted)`, fontWeight: 400 }}>vs {rivalName}</span>
       </div>
       {withPredictions.length === 0 ? (
-        <div className={`error-box`}>Marca el once titular (pestaña Alineación) para ver la probabilidad ajustada.</div>
+        <div className={`error-box`}>Aún no hay jugadores registrados para este equipo.</div>
       ) : (
         <table>
           <thead>
@@ -355,7 +355,7 @@ async function ContextualTable({ list, title, rivalName }) {
         </table>
       )}
       <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
-        Media del jugador ajustada según el estilo del rival ({rivalName}) comparado con la media de la liga. Las flechas indican si sube o baja respecto a su media normal. Cuantos más partidos metas, más fiable será.
+        Incluye toda la plantilla que ha jugado esta temporada (titulares y suplentes habituales), no solo el once confirmado — útil antes de que se conozca la alineación oficial.
       </div>
     </div>
   );
@@ -381,6 +381,10 @@ export default async function MatchDetail({ params, searchParams }) {
       </div>
     );
   }
+
+  const algunoSinConfirmar = [...match.homePlayers, ...match.awayPlayers]
+    .filter((p) => p.titular)
+    .some((p) => !p.confirmado);
 
   return (
     <div className={`wrap`}>
@@ -423,6 +427,11 @@ export default async function MatchDetail({ params, searchParams }) {
       {tab === `alineacion` && (
         <div>
           <div className={`divider`}><span>Once titular</span><div className={`line`} /></div>
+          {algunoSinConfirmar && (
+            <div style={{ background: `rgba(217, 164, 65, 0.12)`, border: `1px solid var(--amber)`, borderRadius: 8, padding: `8px 12px`, marginBottom: 12, fontSize: 12, color: `var(--amber)` }}>
+              ⚠ Once probable, aún sin confirmar oficialmente
+            </div>
+          )}
           <MatchPitch
             homePlayers={match.homePlayers}
             awayPlayers={match.awayPlayers}
@@ -451,8 +460,8 @@ export default async function MatchDetail({ params, searchParams }) {
       {tab === `probabilidad` && (
         <div>
           <div className={`divider`}><span>Probabilidad ajustada por rival</span><div className={`line`} /></div>
-          <ContextualTable list={match.homePlayers} title={match.equipoLocal} rivalName={match.equipoVisitante} />
-          <ContextualTable list={match.awayPlayers} title={match.equipoVisitante} rivalName={match.equipoLocal} />
+          <ContextualTable teamName={match.equipoLocal} title={match.equipoLocal} rivalName={match.equipoVisitante} />
+          <ContextualTable teamName={match.equipoVisitante} title={match.equipoVisitante} rivalName={match.equipoLocal} />
         </div>
       )}
     </div>
