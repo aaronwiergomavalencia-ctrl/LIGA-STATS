@@ -300,62 +300,80 @@ function colorCambio(base, ajustado) {
   return diff > 0 ? `var(--turf)` : `var(--brick, #C6553F)`;
 }
 
+function TablaJugadoresProbabilidad({ jugadores, subtitulo }) {
+  if (jugadores.length === 0) {
+    return (
+      <div style={{ fontSize: 12, color: `var(--text-muted)`, marginBottom: 12 }}>
+        Sin jugadores en este grupo todavía.
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 12, color: `var(--text-sec)`, marginBottom: 6, textTransform: `uppercase`, letterSpacing: `0.04em` }}>
+        {subtitulo}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Jugador</th>
+            {STAT_ROWS.map((s) => (
+              <th key={s.key}>{s.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {jugadores.map((p) => (
+            <tr key={p.nombre}>
+              <td>{p.nombre}</td>
+              {STAT_ROWS.map((s) => {
+                const base = p.pred?.base?.[s.key];
+                const ajustado = p.pred?.sinAjuste ? base : p.pred?.ajustado?.[s.key];
+                return (
+                  <td key={s.key}>
+                    {ajustado === null || ajustado === undefined ? (
+                      `—`
+                    ) : (
+                      <span>
+                        {ajustado.toFixed(2)}{` `}
+                        <span style={{ color: colorCambio(base, ajustado), fontSize: 10 }}>
+                          {flechaCambio(base, ajustado)}
+                        </span>
+                      </span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 async function ContextualTable({ teamName, title, rivalName }) {
   const roster = await getTeamRoster(teamName);
 
   const withPredictions = await Promise.all(
-    roster.map(async (nombre) => ({
-      nombre,
-      pred: await getContextualPrediction(nombre, rivalName),
+    roster.map(async (j) => ({
+      ...j,
+      pred: await getContextualPrediction(j.nombre, rivalName),
     }))
   );
+
+  const titulares = withPredictions.filter((p) => p.esTitularHabitual);
+  const suplentes = withPredictions.filter((p) => !p.esTitularHabitual);
 
   return (
     <div style={{ marginBottom: 26 }}>
       <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
         {title} <span style={{ fontSize: 12, color: `var(--text-muted)`, fontWeight: 400 }}>vs {rivalName}</span>
       </div>
-      {withPredictions.length === 0 ? (
-        <div className={`error-box`}>Aún no hay jugadores registrados para este equipo.</div>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Jugador</th>
-              {STAT_ROWS.map((s) => (
-                <th key={s.key}>{s.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {withPredictions.map((p) => (
-              <tr key={p.nombre}>
-                <td>{p.nombre}</td>
-                {STAT_ROWS.map((s) => {
-                  const base = p.pred?.base?.[s.key];
-                  const ajustado = p.pred?.sinAjuste ? base : p.pred?.ajustado?.[s.key];
-                  return (
-                    <td key={s.key}>
-                      {ajustado === null || ajustado === undefined ? (
-                        `—`
-                      ) : (
-                        <span>
-                          {ajustado.toFixed(2)}{` `}
-                          <span style={{ color: colorCambio(base, ajustado), fontSize: 10 }}>
-                            {flechaCambio(base, ajustado)}
-                          </span>
-                        </span>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <TablaJugadoresProbabilidad jugadores={titulares} subtitulo={`Titulares habituales`} />
+      <TablaJugadoresProbabilidad jugadores={suplentes} subtitulo={`Suplentes`} />
       <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
-        Incluye toda la plantilla que ha jugado esta temporada (titulares y suplentes habituales), no solo el once confirmado — útil antes de que se conozca la alineación oficial.
+        "Titular" = ha empezado la mitad o más de los partidos que jugó esta temporada. Media ajustada según el estilo del rival comparado con la liga.
       </div>
     </div>
   );
