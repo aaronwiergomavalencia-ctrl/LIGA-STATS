@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { getMatchDetail, getPlayerSeasonAverage, getContextualPrediction, getTeamRoster } from "@/lib/sheet-data";
+import {
+  getMatchDetail,
+  getPlayerSeasonAverage,
+  getContextualPrediction,
+  getTeamRoster,
+  getTeamSeasonAverage,
+  getTeamContextualPrediction,
+  TEAM_COMPARISON_STATS,
+} from "@/lib/sheet-data";
 
 function statRow(label, key) {
   return { label, key };
@@ -20,6 +28,10 @@ function fmt(val) {
 
 function fmtAvg(val) {
   return val === null || val === undefined ? "—" : val.toFixed(2);
+}
+
+function sumarEquipo(players, key) {
+  return players.reduce((acc, p) => acc + (p[key] ?? 0), 0);
 }
 
 const POSITION_MAP = {
@@ -123,6 +135,110 @@ function AreaPenalti({ arriba }) {
         border: `1px solid rgba(233, 239, 234, 0.25)`,
       }}
     />
+  );
+}
+
+function StatBar({ label, home, away, decimales = 0 }) {
+  const h = home ?? 0;
+  const a = away ?? 0;
+  const max = Math.max(h, a, 1);
+  const fmtBar = (n) => (decimales ? n.toFixed(decimales) : Math.round(n));
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: `flex`, justifyContent: `space-between`, alignItems: `center`, marginBottom: 6 }}>
+        <span style={{ fontFamily: `Roboto Mono, monospace`, fontSize: 14, fontWeight: 700, color: `var(--turf)`, minWidth: 40 }}>
+          {fmtBar(h)}
+        </span>
+        <span style={{ fontSize: 11, color: `var(--text-sec)`, textTransform: `uppercase`, letterSpacing: `0.04em` }}>
+          {label}
+        </span>
+        <span style={{ fontFamily: `Roboto Mono, monospace`, fontSize: 14, fontWeight: 700, color: `var(--amber)`, minWidth: 40, textAlign: `right` }}>
+          {fmtBar(a)}
+        </span>
+      </div>
+      <div style={{ display: `flex`, height: 6, borderRadius: 3, overflow: `hidden`, gap: 2 }}>
+        <div style={{ flex: 1, display: `flex`, justifyContent: `flex-end`, background: `var(--line)` }}>
+          <div style={{ width: `${(h / max) * 100}%`, background: `var(--turf)` }} />
+        </div>
+        <div style={{ flex: 1, background: `var(--line)` }}>
+          <div style={{ width: `${(a / max) * 100}%`, background: `var(--amber)` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ComparativaEquipoPartido({ homePlayers, awayPlayers, equipoLocal, equipoVisitante }) {
+  return (
+    <div style={{ marginBottom: 26 }}>
+      <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+        {equipoLocal} <span style={{ color: `var(--text-muted)`, fontWeight: 400, fontSize: 13 }}>vs</span> {equipoVisitante}
+      </div>
+      {TEAM_COMPARISON_STATS.map((s) => (
+        <StatBar
+          key={s.key}
+          label={s.label}
+          home={sumarEquipo(homePlayers, s.key)}
+          away={sumarEquipo(awayPlayers, s.key)}
+        />
+      ))}
+    </div>
+  );
+}
+
+async function ComparativaMediaEquipo({ equipoLocal, equipoVisitante }) {
+  const [mediaLocal, mediaVisitante] = await Promise.all([
+    getTeamSeasonAverage(equipoLocal),
+    getTeamSeasonAverage(equipoVisitante),
+  ]);
+  return (
+    <div style={{ marginBottom: 26 }}>
+      <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+        {equipoLocal} <span style={{ color: `var(--text-muted)`, fontWeight: 400, fontSize: 13 }}>vs</span> {equipoVisitante}
+      </div>
+      {TEAM_COMPARISON_STATS.map((s) => (
+        <StatBar
+          key={s.key}
+          label={s.label}
+          home={mediaLocal?.[s.key] ?? 0}
+          away={mediaVisitante?.[s.key] ?? 0}
+          decimales={2}
+        />
+      ))}
+      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
+        Media de equipo por 90 minutos, sobre todo el histórico metido en la hoja.
+      </div>
+    </div>
+  );
+}
+
+async function ComparativaProbabilidadEquipo({ equipoLocal, equipoVisitante }) {
+  const [predLocal, predVisitante] = await Promise.all([
+    getTeamContextualPrediction(equipoLocal, equipoVisitante),
+    getTeamContextualPrediction(equipoVisitante, equipoLocal),
+  ]);
+  const valor = (pred, key) => {
+    if (!pred?.base) return null;
+    return pred.sinAjuste ? pred.base[key] : pred.ajustado?.[key];
+  };
+  return (
+    <div style={{ marginBottom: 26 }}>
+      <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+        {equipoLocal} <span style={{ color: `var(--text-muted)`, fontWeight: 400, fontSize: 13 }}>vs</span> {equipoVisitante}
+      </div>
+      {TEAM_COMPARISON_STATS.map((s) => (
+        <StatBar
+          key={s.key}
+          label={s.label}
+          home={valor(predLocal, s.key) ?? 0}
+          away={valor(predVisitante, s.key) ?? 0}
+          decimales={2}
+        />
+      ))}
+      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
+        Media de equipo ajustada según el estilo del rival de este partido.
+      </div>
+    </div>
   );
 }
 
@@ -468,6 +584,13 @@ export default async function MatchDetail({ params, searchParams }) {
 
       {tab === `partido` && (
         <div>
+          <div className={`divider`}><span>Comparativa de equipo</span><div className={`line`} /></div>
+          <ComparativaEquipoPartido
+            homePlayers={match.homePlayers}
+            awayPlayers={match.awayPlayers}
+            equipoLocal={match.equipoLocal}
+            equipoVisitante={match.equipoVisitante}
+          />
           <div className={`divider`}><span>Estadísticas de este partido</span><div className={`line`} /></div>
           <MatchStatsTable list={match.homePlayers} title={match.equipoLocal} />
           <MatchStatsTable list={match.awayPlayers} title={match.equipoVisitante} />
@@ -476,6 +599,8 @@ export default async function MatchDetail({ params, searchParams }) {
 
       {tab === `media` && (
         <div>
+          <div className={`divider`}><span>Comparativa de equipo (media temporada)</span><div className={`line`} /></div>
+          <ComparativaMediaEquipo equipoLocal={match.equipoLocal} equipoVisitante={match.equipoVisitante} />
           <div className={`divider`}><span>Media por 90 minutos (temporada)</span><div className={`line`} /></div>
           <SeasonAverageTable list={match.homePlayers} title={match.equipoLocal} />
           <SeasonAverageTable list={match.awayPlayers} title={match.equipoVisitante} />
@@ -484,7 +609,9 @@ export default async function MatchDetail({ params, searchParams }) {
 
       {tab === `probabilidad` && (
         <div>
-          <div className={`divider`}><span>Probabilidad ajustada por rival</span><div className={`line`} /></div>
+          <div className={`divider`}><span>Comparativa de equipo (ajustada por rival)</span><div className={`line`} /></div>
+          <ComparativaProbabilidadEquipo equipoLocal={match.equipoLocal} equipoVisitante={match.equipoVisitante} />
+          <div className={`divider`}><span>Probabilidad por jugador</span><div className={`line`} /></div>
           <ContextualTable teamName={match.equipoLocal} title={match.equipoLocal} rivalName={match.equipoVisitante} matchPlayers={match.homePlayers} />
           <ContextualTable teamName={match.equipoVisitante} title={match.equipoVisitante} rivalName={match.equipoLocal} matchPlayers={match.awayPlayers} />
         </div>
