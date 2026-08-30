@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMatches, colorDeEquipo } from "@/lib/sheet-data";
+import { getMatches, colorDeEquipo, inicialesDeEquipo } from "@/lib/sheet-data";
 
 function formatDate(iso) {
   const d = new Date(iso);
@@ -83,7 +83,7 @@ export default async function Home({ searchParams }) {
                 className={`badge`}
                 style={{ borderColor: colorDeEquipo(m.equipoLocal), color: colorDeEquipo(m.equipoLocal) }}
               >
-                {m.equipoLocal.slice(0, 3).toUpperCase()}
+                {inicialesDeEquipo(m.equipoLocal)}
               </div>
               <span>{m.equipoLocal}</span>
             </div>
@@ -97,7 +97,7 @@ export default async function Home({ searchParams }) {
                 className={`badge`}
                 style={{ borderColor: colorDeEquipo(m.equipoVisitante), color: colorDeEquipo(m.equipoVisitante) }}
               >
-                {m.equipoVisitante.slice(0, 3).toUpperCase()}
+                {inicialesDeEquipo(m.equipoVisitante)}
               </div>
               <span>{m.equipoVisitante}</span>
             </div>
