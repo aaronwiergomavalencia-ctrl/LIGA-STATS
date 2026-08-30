@@ -189,8 +189,8 @@ function ComparativaEquipoPartido({ homePlayers, awayPlayers, equipoLocal, equip
 
 async function ComparativaMediaEquipo({ equipoLocal, equipoVisitante }) {
   const [mediaLocal, mediaVisitante] = await Promise.all([
-    getTeamSeasonAverage(equipoLocal),
-    getTeamSeasonAverage(equipoVisitante),
+    getTeamMatchAverage(equipoLocal),
+    getTeamMatchAverage(equipoVisitante),
   ]);
   return (
     <div style={{ marginBottom: 26 }}>
