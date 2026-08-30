@@ -67,7 +67,7 @@ export default async function Home({ searchParams }) {
     <div className={`wrap`}>
       <div className={`title`}>La Liga · partidos (temporada 2026-27)</div>
       <div className={`subtitle`}>Datos introducidos manualmente, basados en fuentes públicas</div>
-
+<Link href={`/clasificacion`} style={{ display: `inline-block`, marginTop: 10, fontSize: 13, color: `var(--turf)`, textDecoration: `none`, border: `1px solid var(--line)`, borderRadius: 8, padding: `6px 12px` }}>Ver clasificación →</Link>
       {jornadas.length > 0 && (
         <div
           style={{
