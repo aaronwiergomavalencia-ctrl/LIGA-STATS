@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMatches, colorDeEquipo, inicialesDeEquipo } from "@/lib/sheet-data";
+import { getMatches, inicialesDeEquipo } from "@/lib/sheet-data";
 
 function formatDate(iso) {
   const d = new Date(iso);
@@ -79,10 +79,7 @@ export default async function Home({ searchParams }) {
         <Link key={m.id} href={`/partido/${m.id}`} className={`match-card`}>
           <div style={{ display: `flex`, alignItems: `center`, gap: 12 }}>
             <div className={`team-row`}>
-              <div
-                className={`badge`}
-                style={{ borderColor: colorDeEquipo(m.equipoLocal), color: colorDeEquipo(m.equipoLocal) }}
-              >
+              <div className={`badge`} style={{ display: `flex`, alignItems: `center`, justifyContent: `center`, textAlign: `center` }}>
                 {inicialesDeEquipo(m.equipoLocal)}
               </div>
               <span>{m.equipoLocal}</span>
@@ -93,10 +90,7 @@ export default async function Home({ searchParams }) {
                 : `vs`}
             </span>
             <div className={`team-row`}>
-              <div
-                className={`badge`}
-                style={{ borderColor: colorDeEquipo(m.equipoVisitante), color: colorDeEquipo(m.equipoVisitante) }}
-              >
+              <div className={`badge`} style={{ display: `flex`, alignItems: `center`, justifyContent: `center`, textAlign: `center` }}>
                 {inicialesDeEquipo(m.equipoVisitante)}
               </div>
               <span>{m.equipoVisitante}</span>
