@@ -12,6 +12,38 @@ function formatDate(iso) {
   });
 }
 
+// De todas las jornadas que ya tienen partidos metidos, elige la que esté
+// más cerca de hoy (por fecha media de sus partidos). Así la web siempre
+// abre mostrando lo relevante, sin tener que cambiarlo a mano cada semana.
+function jornadaActualPorFecha(matches) {
+  const porJornada = new Map();
+
+  matches.forEach((m) => {
+    if (!m.jornada) return;
+    const fecha = new Date(m.fecha);
+    if (isNaN(fecha)) return;
+    if (!porJornada.has(m.jornada)) porJornada.set(m.jornada, []);
+    porJornada.get(m.jornada).push(fecha.getTime());
+  });
+
+  if (porJornada.size === 0) return null;
+
+  const hoy = Date.now();
+  let mejorJornada = null;
+  let mejorDiferencia = Infinity;
+
+  porJornada.forEach((tiempos, jornada) => {
+    const media = tiempos.reduce((a, b) => a + b, 0) / tiempos.length;
+    const diferencia = Math.abs(media - hoy);
+    if (diferencia < mejorDiferencia) {
+      mejorDiferencia = diferencia;
+      mejorJornada = jornada;
+    }
+  });
+
+  return mejorJornada;
+}
+
 export default async function Home({ searchParams }) {
   let matches = [];
   let error = null;
@@ -24,7 +56,8 @@ export default async function Home({ searchParams }) {
 
   const jornadas = Array.from({ length: 38 }, (_, i) => String(i + 1));
 
-  const jornadaActiva = searchParams?.jornada || jornadas[0] || null;
+  const jornadaPorDefecto = jornadaActualPorFecha(matches) || jornadas[0];
+  const jornadaActiva = searchParams?.jornada || jornadaPorDefecto;
 
   const matchesFiltrados = jornadaActiva
     ? matches.filter((m) => String(m.jornada) === String(jornadaActiva))
