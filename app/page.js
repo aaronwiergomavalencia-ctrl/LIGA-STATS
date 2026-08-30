@@ -75,39 +75,72 @@ export default async function Home({ searchParams }) {
         </div>
       )}
 
-      {matchesFiltrados.map((m) => (
-        <Link key={m.id} href={`/partido/${m.id}`} className={`match-card`}>
-          <div style={{ display: `flex`, alignItems: `center`, gap: 12 }}>
-            <div className={`team-row`}>
-              <div className={`badge`} style={{ display: `flex`, alignItems: `center`, justifyContent: `center`, textAlign: `center` }}>
-                {inicialesDeEquipo(m.equipoLocal)}
+      {matchesFiltrados.map((m) => {
+        const tieneResultado = m.golesLocal !== null && m.golesVisitante !== null;
+        return (
+          <Link
+            key={m.id}
+            href={`/partido/${m.id}`}
+            style={{
+              display: `block`,
+              textDecoration: `none`,
+              color: `inherit`,
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                background: `var(--surface)`,
+                border: `1px solid var(--line)`,
+                borderRadius: 10,
+                padding: `16px 0`,
+                position: `relative`,
+                display: `flex`,
+                alignItems: `center`,
+              }}
+            >
+              <div style={{ flex: 1, display: `flex`, flexDirection: `column`, alignItems: `center`, gap: 6 }}>
+                <div className={`badge`} style={{ display: `flex`, alignItems: `center`, justifyContent: `center`, textAlign: `center` }}>
+                  {inicialesDeEquipo(m.equipoLocal)}
+                </div>
+                <span style={{ fontSize: 13, textAlign: `center` }}>{m.equipoLocal}</span>
               </div>
-              <span>{m.equipoLocal}</span>
-            </div>
-            <span style={{ color: `var(--turf)`, fontFamily: `Roboto Mono, monospace`, fontSize: 15, fontWeight: 700, minWidth: 36, textAlign: `center` }}>
-              {m.golesLocal !== null && m.golesVisitante !== null
-                ? `${m.golesLocal} - ${m.golesVisitante}`
-                : `vs`}
-            </span>
-            <div className={`team-row`}>
-              <div className={`badge`} style={{ display: `flex`, alignItems: `center`, justifyContent: `center`, textAlign: `center` }}>
-                {inicialesDeEquipo(m.equipoVisitante)}
+
+              <div style={{ position: `absolute`, left: `50%`, top: 0, bottom: 0, width: 1, background: `var(--line)` }} />
+
+              <div
+                style={{
+                  position: `absolute`,
+                  left: `50%`,
+                  top: `50%`,
+                  transform: `translate(-50%, -50%)`,
+                  background: `var(--bg)`,
+                  border: `1px solid var(--line)`,
+                  borderRadius: 20,
+                  padding: `4px 14px`,
+                  fontFamily: `Barlow Condensed, sans-serif`,
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: `var(--turf)`,
+                  whiteSpace: `nowrap`,
+                }}
+              >
+                {tieneResultado ? `${m.golesLocal} - ${m.golesVisitante}` : `vs`}
               </div>
-              <span>{m.equipoVisitante}</span>
-            </div>
-          </div>
-          <div style={{ textAlign: `right` }}>
-            {m.jornada && (
-              <div style={{ fontFamily: `Roboto Mono, monospace`, fontSize: 12, color: `var(--text-sec)` }}>
-                Jornada {m.jornada}
+
+              <div style={{ flex: 1, display: `flex`, flexDirection: `column`, alignItems: `center`, gap: 6 }}>
+                <div className={`badge`} style={{ display: `flex`, alignItems: `center`, justifyContent: `center`, textAlign: `center` }}>
+                  {inicialesDeEquipo(m.equipoVisitante)}
+                </div>
+                <span style={{ fontSize: 13, textAlign: `center` }}>{m.equipoVisitante}</span>
               </div>
-            )}
-            <div style={{ fontSize: 12, color: `var(--text-muted)`, marginTop: 2 }}>
-              {formatDate(m.fecha)}
             </div>
-          </div>
-        </Link>
-      ))}
+            <div style={{ textAlign: `center`, fontSize: 11, color: `var(--text-muted)`, fontFamily: `Roboto Mono, monospace`, marginTop: 6 }}>
+              {m.jornada && `Jornada ${m.jornada} · `}{formatDate(m.fecha)}
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }
