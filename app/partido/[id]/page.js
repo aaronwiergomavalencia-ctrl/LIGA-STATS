@@ -5,6 +5,7 @@ import {
   getContextualPrediction,
   getTeamRoster,
   getTeamSeasonAverage,
+  getTeamMatchAverage,
   getTeamContextualPrediction,
   TEAM_COMPARISON_STATS,
 } from "@/lib/sheet-data";
