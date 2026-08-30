@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMatches } from "@/lib/sheet-data";
+import { getMatches, colorDeEquipo } from "@/lib/sheet-data";
 
 function formatDate(iso) {
   const d = new Date(iso);
@@ -79,7 +79,12 @@ export default async function Home({ searchParams }) {
         <Link key={m.id} href={`/partido/${m.id}`} className={`match-card`}>
           <div style={{ display: `flex`, alignItems: `center`, gap: 12 }}>
             <div className={`team-row`}>
-              <div className={`badge`}>{m.equipoLocal.slice(0, 3).toUpperCase()}</div>
+              <div
+                className={`badge`}
+                style={{ borderColor: colorDeEquipo(m.equipoLocal), color: colorDeEquipo(m.equipoLocal) }}
+              >
+                {m.equipoLocal.slice(0, 3).toUpperCase()}
+              </div>
               <span>{m.equipoLocal}</span>
             </div>
             <span style={{ color: `var(--turf)`, fontFamily: `Roboto Mono, monospace`, fontSize: 15, fontWeight: 700, minWidth: 36, textAlign: `center` }}>
@@ -88,7 +93,12 @@ export default async function Home({ searchParams }) {
                 : `vs`}
             </span>
             <div className={`team-row`}>
-              <div className={`badge`}>{m.equipoVisitante.slice(0, 3).toUpperCase()}</div>
+              <div
+                className={`badge`}
+                style={{ borderColor: colorDeEquipo(m.equipoVisitante), color: colorDeEquipo(m.equipoVisitante) }}
+              >
+                {m.equipoVisitante.slice(0, 3).toUpperCase()}
+              </div>
               <span>{m.equipoVisitante}</span>
             </div>
           </div>
