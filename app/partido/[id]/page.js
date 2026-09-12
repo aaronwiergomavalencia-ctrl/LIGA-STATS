@@ -243,10 +243,10 @@ async function ComparativaMediaEquipo({ equipoLocal, equipoVisitante }) {
   );
 }
 
-async function ComparativaProbabilidadEquipo({ equipoLocal, equipoVisitante }) {
+async function ComparativaProbabilidadEquipo({ equipoLocal, equipoVisitante, arbitroName }) {
   const [predLocal, predVisitante] = await Promise.all([
-    getTeamContextualPrediction(equipoLocal, equipoVisitante),
-    getTeamContextualPrediction(equipoVisitante, equipoLocal),
+    getTeamContextualPrediction(equipoLocal, equipoVisitante, arbitroName),
+    getTeamContextualPrediction(equipoVisitante, equipoLocal, arbitroName),
   ]);
   const valor = (pred, key) => {
     if (!pred?.base) return null;
@@ -267,7 +267,7 @@ async function ComparativaProbabilidadEquipo({ equipoLocal, equipoVisitante }) {
         />
       ))}
       <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
-        Media de equipo ajustada según el estilo del rival de este partido.
+        Media de equipo ajustada según el estilo del rival{arbitroName ? ` y el árbitro de este partido` : ``}.
       </div>
     </div>
   );
@@ -499,7 +499,7 @@ function TablaJugadoresProbabilidad({ jugadores, subtitulo }) {
   );
 }
 
-async function ContextualTable({ teamName, title, rivalName, matchPlayers }) {
+async function ContextualTable({ teamName, title, rivalName, matchPlayers, arbitroName }) {
   const roster = await getTeamRoster(teamName);
   const enEstePartido = new Map(matchPlayers.map((p) => [p.nombre, p.titular]));
 
@@ -511,7 +511,7 @@ async function ContextualTable({ teamName, title, rivalName, matchPlayers }) {
       return {
         ...j,
         esTitular,
-        pred: await getContextualPrediction(j.nombre, rivalName),
+        pred: await getContextualPrediction(j.nombre, rivalName, arbitroName),
       };
     })
   );
@@ -527,7 +527,7 @@ async function ContextualTable({ teamName, title, rivalName, matchPlayers }) {
       <TablaJugadoresProbabilidad jugadores={titulares} subtitulo={`Titulares`} />
       <TablaJugadoresProbabilidad jugadores={suplentes} subtitulo={`Suplentes`} />
       <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
-        Si el jugador tiene TITULAR marcado en este partido, se usa ese dato. Si no aparece en este partido, se usa si suele ser titular en el resto de la temporada.
+        Si el jugador tiene TITULAR marcado en este partido, se usa ese dato. Si no aparece en este partido, se usa si suele ser titular en el resto de la temporada. Las faltas también se ajustan según el árbitro de este partido.
       </div>
     </div>
   );
@@ -557,6 +557,8 @@ export default async function MatchDetail({ params, searchParams }) {
   const algunoSinConfirmar = [...match.homePlayers, ...match.awayPlayers]
     .filter((p) => p.titular)
     .some((p) => !p.confirmado);
+
+  const arbitro = await getArbitroDePartido(match.id);
 
   return (
     <div className={`wrap`}>
@@ -643,10 +645,10 @@ export default async function MatchDetail({ params, searchParams }) {
       {tab === `probabilidad` && (
         <div>
           <div className={`divider`}><span>Comparativa de equipo (ajustada por rival)</span><div className={`line`} /></div>
-          <ComparativaProbabilidadEquipo equipoLocal={match.equipoLocal} equipoVisitante={match.equipoVisitante} />
+          <ComparativaProbabilidadEquipo equipoLocal={match.equipoLocal} equipoVisitante={match.equipoVisitante} arbitroName={arbitro?.nombre} />
           <div className={`divider`}><span>Probabilidad por jugador</span><div className={`line`} /></div>
-          <ContextualTable teamName={match.equipoLocal} title={match.equipoLocal} rivalName={match.equipoVisitante} matchPlayers={match.homePlayers} />
-          <ContextualTable teamName={match.equipoVisitante} title={match.equipoVisitante} rivalName={match.equipoLocal} matchPlayers={match.awayPlayers} />
+          <ContextualTable teamName={match.equipoLocal} title={match.equipoLocal} rivalName={match.equipoVisitante} matchPlayers={match.homePlayers} arbitroName={arbitro?.nombre} />
+          <ContextualTable teamName={match.equipoVisitante} title={match.equipoVisitante} rivalName={match.equipoLocal} matchPlayers={match.awayPlayers} arbitroName={arbitro?.nombre} />
         </div>
       )}
     </div>
