@@ -7,6 +7,8 @@ import {
   getTeamSeasonAverage,
   getTeamMatchAverage,
   getTeamContextualPrediction,
+  getArbitroDePartido,
+  getLigaArbitrosAverage,
   TEAM_COMPARISON_STATS,
 } from "@/lib/sheet-data";
 
@@ -183,6 +185,34 @@ function ComparativaEquipoPartido({ homePlayers, awayPlayers, equipoLocal, equip
           away={sumarEquipo(awayPlayers, s.key)}
         />
       ))}
+    </div>
+  );
+}
+
+async function ArbitroInfo({ matchId }) {
+  const [arbitro, media] = await Promise.all([
+    getArbitroDePartido(matchId),
+    getLigaArbitrosAverage(),
+  ]);
+
+  if (!arbitro) {
+    return (
+      <div style={{ marginBottom: 26 }}>
+        <div className={`error-box`}>Aún no se ha añadido el árbitro de este partido.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: 26 }}>
+      <div style={{ fontFamily: `Barlow Condensed, sans-serif`, fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+        {arbitro.nombre}
+      </div>
+      <StatBar label={`Amarillas`} home={arbitro.amarillas} away={media?.amarillas ?? 0} decimales={1} />
+      <StatBar label={`Rojas`} home={arbitro.rojas} away={media?.rojas ?? 0} decimales={2} />
+      <div style={{ fontFamily: `Inter, sans-serif`, fontSize: 11, color: `var(--text-muted)`, marginTop: 4 }}>
+        A la izquierda, lo que sacó este árbitro en este partido. A la derecha, la media de todos los árbitros.
+      </div>
     </div>
   );
 }
@@ -592,6 +622,8 @@ export default async function MatchDetail({ params, searchParams }) {
             equipoLocal={match.equipoLocal}
             equipoVisitante={match.equipoVisitante}
           />
+          <div className={`divider`}><span>Árbitro</span><div className={`line`} /></div>
+          <ArbitroInfo matchId={match.id} />
           <div className={`divider`}><span>Estadísticas de este partido</span><div className={`line`} /></div>
           <MatchStatsTable list={match.homePlayers} title={match.equipoLocal} />
           <MatchStatsTable list={match.awayPlayers} title={match.equipoVisitante} />
